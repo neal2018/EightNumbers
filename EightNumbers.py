@@ -185,6 +185,7 @@ class A_Star():
             self.errorFlag=True
         return result
     
+#测试
 start=[[1,0,4],[7,3,5],[8,6,2]]
 end=[[1,3,2],[7,0,4],[6,5,8]]
 A_Star(start,end).Solution()
