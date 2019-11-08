@@ -1,191 +1,254 @@
-'''
+"""
 Created on Mar 27, 2019
 
 @author: neal
-'''
+"""
 import numpy as np
 import sortedcontainers
 
-class A_Star():
-    def __init__(self,start,end):
-        #star和end为3*3的list
-        self.find_deep=[-1]*400000 #所有状态的深度，-1表示该状态未生成
-        self.find_parent=[-1]*400000 #所有状态的parent
-        self.factorial=[1,1,2,6,24,120,720,5040,40320] #0～8的阶乘
-        self.search_count=0 #计算总搜索次数
-        self.errorFlag=False
-        self.start=start
-        self.end=end
-        self.open=sortedcontainers.SortedList([])
-        #我们不需要close列表
-        
-    class Node():
-        #这是储存在open里的单位，每个Node对应一个状态
-        def __init__(self,idx,cost):
-            self.idx=idx #该状态的康托展开
-            self.cost=cost #该状态到目标状态的距离估计
-        def __lt__(self,other):
-            return self.cost>other.cost
-           
-    def Solution(self):
-        #解法的主函数
-        #首先检查输入是否合法，并把输入从3*3的list变为1*9的list
-        self.start=self.check_input(self.start)
-        self.end=self.check_input(self.end)       
-        if self.errorFlag==True:
-            print("Errors.")
-            return
-        #检查是否有解
+
+class AStarForEightNumbers:
+    def __init__(self, start, end):
+        self.find_deep = [-1] * 400000
+        self.find_parent = [-1] * 400000
+        self.factorial = [1, 1, 2, 6, 24, 120, 720, 5040, 40320]
+        self.search_count = 0
+
+        self.check_input(start, end)
+        self.start = self.transform(start)
+        self.end = self.transform(end)
+
+        self.cantor_start = self.cantor(self.start)
+        self.cantor_end = self.cantor(self.end)
+
+        self.open = sortedcontainers.SortedList([])
+        # we do not need a close list
+
+    class Node:
+        """
+        to store a search result
+        """
+        def __init__(self, cantor_idx, cost):
+            """
+            initialization
+            :param cantor_idx: int
+            :param cost: float
+            """
+            self.cantor_idx = cantor_idx
+            self.cost = cost
+
+        def __lt__(self, other):
+            """
+            write the compare method
+            :param other: Node
+            :return: bool
+            """
+            return self.cost > other.cost
+
+    def solution(self):
+        """
+        the main function to solve the problem
+        :return: None
+        """
+        # check if the solution exists
         if not self.have_solution():
             print("No result.")
             return
-        #初始化
-        self.cantorstart=self.cantor(self.start)
-        self.cantorend=self.cantor(self.end) 
-        current=self.Node(self.cantorstart,self.get_hcost(self.start))
-        self.find_deep[self.cantorstart]=0
-        while True:
-            #检查是否到达目标状态
-            if current.idx==self.cantorend:
-                print("The Answer is:")
-                self.print_result(current)
-                return 
-            #否则，延展当前状态，并从open中提取cost最小的作为下一个状态
+
+        current = self.Node(self.cantor_start, self.get_cost(self.start))
+        self.find_deep[self.cantor_start] = 0
+
+        while current.cantor_idx != self.cantor_end:
             self.extension(current)
-            current=self.open.pop()
-            self.search_count+=1
-            
-    def extension(self,parent):
-        #延展子状态
-        #寻找0在哪个位置
-        state=self.un_cantor(parent.idx)
+            current = self.open.pop()
+            self.search_count += 1
+
+        self.print_result(current)
+
+    def extension(self, parent):
+        """
+        extend the parent Node
+        :param parent: Node
+        :return: None
+        """
+        state = self.decantor(parent.cantor_idx)
+
         for i in range(9):
-            if state[i]==0:
-                position=i
+            if state[i] == 0:
+                position = i
                 break
-        #检查上下左右是否能走，并生成相应的子状态
-        #上
-        if position//3!=0:
-            temp=state*1
-            temp[position]=temp[position-3]
-            temp[position-3]=0
-            self.update_open(temp,parent) 
-        #下     
-        if position//3!=2:
-            temp=state*1
-            temp[position]=temp[position+3]
-            temp[position+3]=0
-            self.update_open(temp,parent)
-        #左
-        if position%3!=0:
-            temp=state*1
-            temp[position]=temp[position-1]
-            temp[position-1]=0
-            self.update_open(temp,parent)
-        #右
-        if position%3!=2:
-            temp=state*1
-            temp[position]=temp[position+1]
-            temp[position+1]=0 
-            self.update_open(temp,parent)
-            
-    def print_result(self,current):
-        #打印结果
-        idx=current.idx
-        result=[self.un_cantor(idx)]
-        while self.find_parent[idx]!=-1:
-            result.append(self.un_cantor(self.find_parent[idx]))
-            idx=self.find_parent[idx]
+        else:
+            raise Exception("not 0 found in the given state")
+
+        # try four directions
+        if position // 3 != 0:
+            temp = state * 1
+            temp[position] = temp[position - 3]
+            temp[position - 3] = 0
+            self.update_open(temp, parent)
+
+        if position // 3 != 2:
+            temp = state * 1
+            temp[position] = temp[position + 3]
+            temp[position + 3] = 0
+            self.update_open(temp, parent)
+
+        if position % 3 != 0:
+            temp = state * 1
+            temp[position] = temp[position - 1]
+            temp[position - 1] = 0
+            self.update_open(temp, parent)
+
+        if position % 3 != 2:
+            temp = state * 1
+            temp[position] = temp[position + 1]
+            temp[position + 1] = 0
+            self.update_open(temp, parent)
+
+    def update_open(self, temp, parent):
+        """
+        check if temp have appeared. if so, update open
+        :param temp: Node
+        :param parent: Node
+        :return: None
+        """
+        cantor_idx = self.cantor(temp)
+
+        if self.find_deep[cantor_idx] == -1:
+            self.find_deep[cantor_idx] = self.find_deep[parent.cantor_idx] + 1
+            self.find_parent[cantor_idx] = parent.cantor_idx
+            temp_cost = self.find_deep[parent.cantor_idx] + 1 + self.get_cost(temp)
+            node_temp = self.Node(cantor_idx, temp_cost)
+            self.open.add(node_temp)
+
+        # if temp have appeared, but the deep here is smaller, update.
+        elif self.find_deep[cantor_idx] > self.find_deep[parent.cantor_idx] + 1:
+            self.find_deep[cantor_idx] = self.find_deep[parent.cantor_idx] + 1
+            self.find_parent[cantor_idx] = parent.cantor_idx
+
+    def print_result(self, end):
+        """
+        print the result
+        :param end: Node
+        :return: None
+        """
+        cantor_idx = end.cantor_idx
+        result = [self.decantor(cantor_idx)]
+
+        while self.find_parent[cantor_idx] != -1:
+            result.append(self.decantor(self.find_parent[cantor_idx]))
+            cantor_idx = self.find_parent[cantor_idx]
+
         result.reverse()
-        for i in range(len(result)):
-            temp=np.matrix([result[i][0:3],result[i][3:6],result[i][6:9]])
-            if i==0:
-                print("\nthe original situation is:")
+        for i, state in enumerate(result):
+            if i:
+                print(f"the {i}-th step is: ")
             else:
-                print("\nthe %ith step is:" %i)
-            print(temp) 
-        print("\nThat is what we want. \nTotal number of steps is %d." %(len(result)-1))
-        print("Total number of searches is %d." %self.search_count)
-    
+                print("the original situation is: ")
+            print(np.array(state).reshape(3, 3))
+
+        step_number = len(result) - 1
+        print(f"That is what we want. \nThe total number of steps is {step_number}.")
+        print(f"Total number of searches is {self.search_count}")
+
     def have_solution(self):
-        #利用逆序数检查是否有解
-        result=[0,0]
+        """
+        check if any solution exists using inversion
+        :return: bool
+        """
+        result = [0, 0]
         for i in range(9):
             for j in range(i):
-                if self.start[i]<self.start[j] and self.start[i]:
-                    result[0]+=1
-                if self.end[i]<self.end[j] and self.end[i]:
-                    result[1]+=1
-        return result[0]%2==result[1]%2
-    
-    def get_hcost(self,state):
-        #计算从目前状态到目标状态的距离估计，即h(x)
-        result=0
+                if self.start[i] < self.start[j] and self.start[i]:
+                    result[0] += 1
+                if self.end[i] < self.end[j] and self.end[i]:
+                    result[1] += 1
+        return result[0] % 2 == result[1] % 2
+
+    def get_cost(self, state):
+        """
+        calculate the estimated distance between state and the destination
+        :param state: Node
+        :return: float
+        """
+        result = 0
         for i in range(9):
             for j in range(9):
-                if state[i]==self.end[j]:
-                    result+=(abs(i//3-j//3)+abs(i%3-j%3))*(state[i])
-                    #这里采用了每个数字回到目标位置的最小步数乘以数字作为权重的求和
-                    #这是因为，我们希望计算机优先复原某几个数字，而不是均等对待
-                    #实证表明这样比单纯求和效率高
+                if state[i] == self.end[j]:
+                    result += (abs(i // 3 - j // 3) + abs(i % 3 - j % 3)) * (state[i])
+                    # 这里采用了每个数字回到目标位置的最小步数乘以数字作为权重的求和
+                    # 这是因为，我们希望计算机优先复原某几个数字，而不是均等对待
+                    # 实证表明这样比单纯求和效率高
         return result
-    
-    def update_open(self,temp,parent):
-        #延展出子状态后，检查是否生成过，若未生成过，则加入open
-        idx=self.cantor(temp)
-        if self.find_deep[idx]==-1:
-            self.find_deep[idx]=self.find_deep[parent.idx]+1
-            self.find_parent[idx]=parent.idx
-            self.open.add(self.Node(idx,self.find_deep[parent.idx]+1+self.get_hcost(temp)))
-        #若生成过，但该处深度更小，则更新深度
-        elif  self.find_deep[idx]>self.find_deep[parent.idx]+1:
-            self.find_deep[idx]=self.find_deep[parent.idx]+1                
-            self.find_parent[idx]=parent.idx
-    
-    def cantor(self,state):
-        #康托展开
-        result=0
+
+    def cantor(self, state):
+        """
+        calculate the cantor expansion of the given state
+        :param state:
+        :return: int
+        """
+        result = 0
         for i in range(9):
-            count=0
-            for j in range(i,9):
-                if(state[i]>state[j]):
-                    count+=1
-            result+=count*self.factorial[9-i-1]        
+            count = 0
+            for j in range(i, 9):
+                if state[i] > state[j]:
+                    count += 1
+            result += count * self.factorial[9 - i - 1]
         return result
-    
-    def un_cantor(self,idx):
-        #逆康托展开
-        number=[0,1,2,3,4,5,6,7,8]
-        result=[0]*9
+
+    def decantor(self, cantor_idx):
+        """
+        calculate the decantor expansion of the given cantor_idx
+        :param cantor_idx: int
+        :return: array-like, len = 9
+        """
+        number = list(range(9))
+        result = [0] * 9
         for i in range(9):
-            t=idx//self.factorial[9-i-1]
-            idx%=self.factorial[9-i-1]
-            result[i]=number[t]
+            t = cantor_idx // self.factorial[9 - i - 1]
+            cantor_idx %= self.factorial[9 - i - 1]
+            result[i] = number[t]
             number.pop(t)
         return result
-    
-    def check_input(self,state):
-        #检查输入是否合法，并将3*3转换为1*9
-        #检查是否已有error，若有，则跳过本次检查
-        if self.errorFlag==True:
-            return
-        result=[0]*9
-        #检查输入形式是否正确
-        try:
-            for i in range(3):
-                for j in range(3):
-                    result[3*i+j]=state[i][j]
-        except:
-            print("The input is illegal.")
-            self.errorFlag=True
-            return
-        #检查输入是否为0-8的排序
-        if set(result)!={1,2,3,4,5,6,7,8,0}:
-            print("The input is illegal.")
-            self.errorFlag=True
+
+    def check_input(self, start, end):
+        """
+        check if the input is (3, 3), and composite by range(9)
+        :param start: list, shape = (3, 3)
+        :param end: list, shape = (3, 3)
+        :return: None
+        """
+        array_start = np.array(start)
+        if array_start.shape != (3, 3) or set(array_start.ravel()) != set(range(9)):
+            raise ValueError("The input is illegal!")
+
+        array_end = np.array(end)
+        if array_end.shape != (3, 3) or set(array_end.ravel()) != set(range(9)):
+            raise ValueError("The input is illegal!")
+
+    def transform(self, state):
+        """
+        transform the given state into a one dimensional list
+        :param state: 3*3 list
+        :return: array-like, len = 9
+        """
+        result = [0] * 9
+        for i in range(3):
+            for j in range(3):
+                result[3 * i + j] = state[i][j]
         return result
-    
-#测试
-start=[[1,0,4],[7,3,5],[8,6,2]]
-end=[[1,3,2],[7,0,4],[6,5,8]]
-A_Star(start,end).Solution()
+
+
+if __name__ == '__main__':
+    # test
+    test_start = [[1, 0, 4],
+                  [7, 3, 5],
+                  [8, 6, 2]
+                  ]
+
+    test_end = [[1, 3, 2],
+                [7, 0, 4],
+                [6, 5, 8]
+                ]
+
+    AStarForEightNumbers(test_start, test_end).solution()
