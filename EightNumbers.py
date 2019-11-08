@@ -17,8 +17,8 @@ class AStarForEightNumbers:
 
         self.open = sortedcontainers.SortedList([])
         self.factorial = [factorial(i) for i in range(self.n * self.n)]
-        self.find_deep = [-1] * self.factorial[-1]
-        self.find_parent = [-1] * self.factorial[-1]
+        self.find_deep = {}
+        self.find_parent = {}
         self.search_count = 0
 
         self.cantor_start = self.cantor(self.start)
@@ -112,7 +112,7 @@ class AStarForEightNumbers:
         """
         cantor_idx = self.cantor(temp)
 
-        if self.find_deep[cantor_idx] == -1:
+        if cantor_idx not in self.find_deep.keys():
             self.find_deep[cantor_idx] = self.find_deep[parent.cantor_idx] + 1
             self.find_parent[cantor_idx] = parent.cantor_idx
             temp_cost = self.find_deep[parent.cantor_idx] + 1 + self.get_cost(temp)
@@ -133,7 +133,7 @@ class AStarForEightNumbers:
         cantor_idx = end.cantor_idx
         result = [self.decantor(cantor_idx)]
 
-        while self.find_parent[cantor_idx] != -1:
+        while cantor_idx in self.find_parent.keys():
             result.append(self.decantor(self.find_parent[cantor_idx]))
             cantor_idx = self.find_parent[cantor_idx]
 
