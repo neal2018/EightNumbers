@@ -5,29 +5,32 @@ Created on Mar 27, 2019
 """
 import numpy as np
 import sortedcontainers
+from math import factorial
 
 
 class AStarForEightNumbers:
     def __init__(self, start, end):
-        self.find_deep = [-1] * 400000
-        self.find_parent = [-1] * 400000
-        self.factorial = [1, 1, 2, 6, 24, 120, 720, 5040, 40320]
-        self.search_count = 0
-
+        self.n = len(start)
         self.check_input(start, end)
         self.start = self.transform(start)
         self.end = self.transform(end)
 
+        self.open = sortedcontainers.SortedList([])
+        self.factorial = [factorial(i) for i in range(self.n * self.n)]
+        self.find_deep = [-1] * self.factorial[-1]
+        self.find_parent = [-1] * self.factorial[-1]
+        self.search_count = 0
+
         self.cantor_start = self.cantor(self.start)
         self.cantor_end = self.cantor(self.end)
 
-        self.open = sortedcontainers.SortedList([])
-        # we do not need a close list
+        # note that we do not need a close list
 
     class Node:
         """
         to store a search result
         """
+
         def __init__(self, cantor_idx, cost):
             """
             initialization
@@ -73,34 +76,29 @@ class AStarForEightNumbers:
         """
         state = self.decantor(parent.cantor_idx)
 
-        for i in range(9):
-            if state[i] == 0:
-                position = i
-                break
-        else:
-            raise Exception("not 0 found in the given state")
+        position = np.argmin(state)
 
         # try four directions
-        if position // 3 != 0:
-            temp = state * 1
-            temp[position] = temp[position - 3]
-            temp[position - 3] = 0
+        if position // self.n != 0:
+            temp = state.copy()
+            temp[position] = temp[position - self.n]
+            temp[position - self.n] = 0
             self.update_open(temp, parent)
 
-        if position // 3 != 2:
-            temp = state * 1
-            temp[position] = temp[position + 3]
-            temp[position + 3] = 0
+        if position // self.n != self.n - 1:
+            temp = state.copy()
+            temp[position] = temp[position + self.n]
+            temp[position + self.n] = 0
             self.update_open(temp, parent)
 
-        if position % 3 != 0:
-            temp = state * 1
+        if position % self.n != 0:
+            temp = state.copy()
             temp[position] = temp[position - 1]
             temp[position - 1] = 0
             self.update_open(temp, parent)
 
-        if position % 3 != 2:
-            temp = state * 1
+        if position % self.n != self.n - 1:
+            temp = state.copy()
             temp[position] = temp[position + 1]
             temp[position + 1] = 0
             self.update_open(temp, parent)
@@ -156,14 +154,22 @@ class AStarForEightNumbers:
         check if any solution exists using inversion
         :return: bool
         """
-        result = [0, 0]
-        for i in range(9):
+        start_inversion = 0
+        end_inversion = 0
+        for i in range(self.n * self.n):
             for j in range(i):
                 if self.start[i] < self.start[j] and self.start[i]:
-                    result[0] += 1
+                    start_inversion += 1
                 if self.end[i] < self.end[j] and self.end[i]:
-                    result[1] += 1
-        return result[0] % 2 == result[1] % 2
+                    end_inversion += 1
+
+        if self.n % 2 == 1:
+            return start_inversion % 2 == end_inversion % 2
+        else:
+            start_zero_position = np.argmin(self.start)
+            end_zero_position = np.argmin(self.end)
+            h_distance = abs(start_zero_position // self.n - end_zero_position // self.n)
+            return (start_inversion + h_distance) % 2 == end_inversion % 2
 
     def get_cost(self, state):
         """
@@ -172,10 +178,10 @@ class AStarForEightNumbers:
         :return: float
         """
         result = 0
-        for i in range(9):
-            for j in range(9):
+        for i in range(self.n * self.n):
+            for j in range(self.n * self.n):
                 if state[i] == self.end[j]:
-                    result += (abs(i // 3 - j // 3) + abs(i % 3 - j % 3)) * (state[i])
+                    result += (abs(i // self.n - j // self.n) + abs(i % self.n - j % self.n)) * (state[i])
                     # 这里采用了每个数字回到目标位置的最小步数乘以数字作为权重的求和
                     # 这是因为，我们希望计算机优先复原某几个数字，而不是均等对待
                     # 实证表明这样比单纯求和效率高
@@ -188,28 +194,28 @@ class AStarForEightNumbers:
         :return: int
         """
         result = 0
-        for i in range(9):
+        for i in range(self.n * self.n):
             count = 0
-            for j in range(i, 9):
+            for j in range(i, self.n * self.n):
                 if state[i] > state[j]:
                     count += 1
-            result += count * self.factorial[9 - i - 1]
+            result += count * self.factorial[self.n * self.n - i - 1]
         return result
 
     def decantor(self, cantor_idx):
         """
         calculate the decantor expansion of the given cantor_idx
         :param cantor_idx: int
-        :return: array-like, len = 9
+        :return: array-like, len = self.n * self.n
         """
-        number = list(range(9))
-        result = [0] * 9
-        for i in range(9):
-            t = cantor_idx // self.factorial[9 - i - 1]
-            cantor_idx %= self.factorial[9 - i - 1]
+        number = list(range(self.n * self.n))
+        result = [0] * (self.n * self.n)
+        for i in range(self.n * self.n):
+            t = cantor_idx // self.factorial[self.n * self.n - i - 1]
+            cantor_idx %= self.factorial[self.n * self.n - i - 1]
             result[i] = number[t]
             number.pop(t)
-        return result
+        return np.array(result)
 
     def check_input(self, start, end):
         """
@@ -219,24 +225,20 @@ class AStarForEightNumbers:
         :return: None
         """
         array_start = np.array(start)
-        if array_start.shape != (3, 3) or set(array_start.ravel()) != set(range(9)):
+        if array_start.shape != (self.n, self.n) or set(array_start.ravel()) != set(range(self.n * self.n)):
             raise ValueError("The input is illegal!")
 
         array_end = np.array(end)
-        if array_end.shape != (3, 3) or set(array_end.ravel()) != set(range(9)):
+        if array_end.shape != (self.n, self.n) or set(array_end.ravel()) != set(range(self.n * self.n)):
             raise ValueError("The input is illegal!")
 
     def transform(self, state):
         """
         transform the given state into a one dimensional list
-        :param state: 3*3 list
-        :return: array-like, len = 9
+        :param state: list, shape = (self.n, self.n)
+        :return: array-like, len = self.n * self.n
         """
-        result = [0] * 9
-        for i in range(3):
-            for j in range(3):
-                result[3 * i + j] = state[i][j]
-        return result
+        return np.array(state).ravel()
 
 
 if __name__ == '__main__':
